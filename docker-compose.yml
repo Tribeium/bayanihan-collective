@@ -13,6 +13,7 @@ services:
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-5}
       - FIREWORKS_API_KEY=${FIREWORKS_API_KEY}
       - FIREWORKS_GEMMA_MODEL=${FIREWORKS_GEMMA_MODEL:-accounts/fireworks/models/gemma2-9b-it}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
     volumes:
       - ./backend/src:/app/src
     restart: unless-stopped
