@@ -56,12 +56,25 @@ export async function generateReply(message, { intent, history = [] } = {}) {
     });
 
     if (!response.ok) {
-      throw new Error(`Anthropic API returned ${response.status}`);
+      const errBody = await response.text();
+      throw new Error(`Anthropic API returned ${response.status}: ${errBody}`);
     }
 
     const data = await response.json();
-    const reply = data.content?.[0]?.text ?? localFallbackReply(message, intent);
-    return { reply, source: "claude" };
+    console.log("ANTHROPIC RAW RESPONSE:", JSON.stringify(data, null, 2));
+
+    // Extended-thinking-capable models can return a "thinking" block before
+    // the actual "text" block, so don't assume content[0] is the text block.
+    const textBlock = Array.isArray(data.content)
+      ? data.content.find((block) => block.type === "text")
+      : null;
+
+    if (!textBlock?.text) {
+      console.error("No text block found in Anthropic response, using local fallback.");
+      return { reply: localFallbackReply(message, intent), source: "local-fallback" };
+    }
+
+    return { reply: textBlock.text, source: "claude" };
   } catch (err) {
     console.error("Claude reply generation failed, using local fallback:", err.message);
     return { reply: localFallbackReply(message, intent), source: "local-fallback" };
