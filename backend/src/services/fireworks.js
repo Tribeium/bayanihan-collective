@@ -11,7 +11,7 @@ const INTENTS = [
 // Naive keyword fallback so the demo still works without a Fireworks key.
 function classifyLocally(message) {
   const text = message.toLowerCase();
-  if (/(join|new member|welcome|onboard)/.test(text)) {
+  if (/(join|new member|welcome|onboard|application|apply|member)/.test(text)) {
     return { intent: "onboarding_inquiry", confidence: 0.82 };
   }
   if (/(resource|compute|dataset|gpu|share)/.test(text)) {
@@ -26,15 +26,35 @@ function classifyLocally(message) {
   return { intent: "general_question", confidence: 0.6 };
 }
 
+// If the message alone is too generic (e.g. "Yes please."), retry using the
+// last assistant turn as context so short/affirmative replies still route
+// to the right intent instead of falling back to general_question.
+function classifyWithFallback(message, history = []) {
+  const direct = classifyLocally(message);
+  if (direct.intent !== "general_question") {
+    return { ...direct, source: "local-fallback" };
+  }
+
+  const lastAssistant = [...history].reverse().find((m) => m.role === "assistant");
+  if (lastAssistant?.content) {
+    const contextual = classifyLocally(`${lastAssistant.content} ${message}`);
+    if (contextual.intent !== "general_question") {
+      return { intent: contextual.intent, confidence: 0.65, source: "local-fallback-context" };
+    }
+  }
+
+  return { ...direct, source: "local-fallback" };
+}
+
 /**
  * Classifies intent using Gemma on Fireworks AI. Falls back to a local
  * keyword classifier when FIREWORKS_API_KEY is not configured, so the
  * demo runs without live credentials.
  */
-export async function classifyIntent(message) {
+export async function classifyIntent(message, history = []) {
   const apiKey = process.env.FIREWORKS_API_KEY;
   if (!apiKey) {
-    return { ...classifyLocally(message), source: "local-fallback" };
+    return classifyWithFallback(message, history);
   }
 
   const model = process.env.FIREWORKS_GEMMA_MODEL || "accounts/fireworks/models/gemma2-9b-it";
@@ -66,7 +86,7 @@ export async function classifyIntent(message) {
     const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? "{}");
 
     if (!INTENTS.includes(parsed.intent)) {
-      return { ...classifyLocally(message), source: "local-fallback" };
+      return classifyWithFallback(message, history);
     }
 
     return {
@@ -76,6 +96,6 @@ export async function classifyIntent(message) {
     };
   } catch (err) {
     console.error("Fireworks classification failed, using local fallback:", err.message);
-    return { ...classifyLocally(message), source: "local-fallback" };
+    return classifyWithFallback(message, history);
   }
 }

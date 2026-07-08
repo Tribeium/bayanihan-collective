@@ -12,7 +12,7 @@ router.post("/message", async (req, res) => {
     return res.status(400).json({ error: "message is required" });
   }
 
-  const classification = await classifyIntent(message);
+  const classification = await classifyIntent(message, history);
   const { reply, source } = await generateReply(message, {
     intent: classification.intent,
     history,
