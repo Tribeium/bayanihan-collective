@@ -72,7 +72,8 @@ export async function classifyIntent(message, history = []) {
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 100,
+        max_tokens: 400,
+        response_format: { type: "json_object" },
         temperature: 0,
       }),
     });
