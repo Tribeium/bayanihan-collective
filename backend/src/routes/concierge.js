@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { classifyIntent } from "../services/fireworks.js";
+import { classifyIntent } from "../services/gemma.js";
 import { generateReply } from "../services/claude.js";
 
 const router = Router();
