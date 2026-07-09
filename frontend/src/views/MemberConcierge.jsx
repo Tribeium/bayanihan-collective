@@ -39,7 +39,7 @@ export default function MemberConcierge() {
     <div className="view">
       <h1 className="view__title">Member Concierge</h1>
       <p className="view__subtitle">
-        Two-layer AI: Gemma (Fireworks AI) classifies intent, then Claude generates the response.
+        Two-layer AI: Gemma (Google AI Studio) classifies intent, then Claude generates the response.
       </p>
       {error && <p className="error-banner">{error}</p>}
       <div className="panel panel--chat">
