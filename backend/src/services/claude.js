@@ -46,7 +46,7 @@ export async function generateReply(message, { intent, history = [] } = {}) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 400,
+        max_tokens: 1024,
         system: SYSTEM_PROMPT,
         messages: [
           ...history,
