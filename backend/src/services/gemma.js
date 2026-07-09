@@ -73,8 +73,17 @@ export async function classifyIntent(message, history = []) {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0,
-          maxOutputTokens: 400,
+          maxOutputTokens: 800,
+            thinkingConfig: { thinkingLevel: "low" },
           responseMimeType: "application/json",
+            responseJsonSchema: {
+              type: "object",
+              properties: {
+                intent: { type: "string", enum: INTENTS },
+                confidence: { type: "number" },
+              },
+              required: ["intent", "confidence"],
+            },
         },
       }),
     });
