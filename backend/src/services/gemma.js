@@ -1,4 +1,4 @@
-const GEMMA_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const GEMMA_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const INTENTS = [
   "onboarding_inquiry",
@@ -63,18 +63,19 @@ export async function classifyIntent(message, history = []) {
   )}. Respond with strict JSON only: {"intent": "...", "confidence": 0.0-1.0}.\n\nMessage: "${message}"`;
 
   try {
-    const response = await fetch(GEMMA_URL, {
+    const response = await fetch(`${GEMMA_API_BASE}/${model}:generateContent`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        "x-goog-api-key": apiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 400,
-        response_format: { type: "json_object" },
-        temperature: 0,
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0,
+          maxOutputTokens: 400,
+          responseMimeType: "application/json",
+        },
       }),
     });
 
@@ -85,8 +86,9 @@ export async function classifyIntent(message, history = []) {
     }
 
     const data = await response.json();
-    console.log("Gemma raw content:", JSON.stringify(data.choices?.[0]?.message?.content ?? ""));
-    const raw = data.choices?.[0]?.message?.content ?? "";
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const raw = parts.filter((p) => !p.thought).map((p) => p.text).join("");
+    console.log("Gemma raw content:", JSON.stringify(raw));
     const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? "{}");
 
     if (!INTENTS.includes(parsed.intent)) {
