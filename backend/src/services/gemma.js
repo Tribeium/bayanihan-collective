@@ -79,10 +79,13 @@ export async function classifyIntent(message, history = []) {
     });
 
     if (!response.ok) {
+      const errBody = await response.text().catch(() => "(could not read body)");
+      console.error("Gemma API error body:", errBody);
       throw new Error(`Gemma API returned ${response.status}`);
     }
 
     const data = await response.json();
+    console.log("Gemma raw content:", JSON.stringify(data.choices?.[0]?.message?.content ?? ""));
     const raw = data.choices?.[0]?.message?.content ?? "";
     const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? "{}");
 
