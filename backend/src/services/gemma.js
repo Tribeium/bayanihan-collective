@@ -74,7 +74,6 @@ export async function classifyIntent(message, history = []) {
         generationConfig: {
           temperature: 0,
           maxOutputTokens: 800,
-            thinkingConfig: { thinkingLevel: "low" },
           responseMimeType: "application/json",
             responseJsonSchema: {
               type: "object",
