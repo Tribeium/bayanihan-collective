@@ -4,7 +4,7 @@ import { generateReply } from "../services/claude.js";
 
 const router = Router();
 
-// Two-layer pipeline: Gemma (Google AI Studio) classifies intent first, then Claude
+// Two-layer pipeline: Gemma (AMD Developer Cloud → Google AI Studio → local fallback) classifies intent first, then Claude
 // generates the actual conversational reply, informed by that classification.
 router.post("/message", async (req, res) => {
   const { message, history } = req.body;

@@ -6,8 +6,6 @@ export default function GemmaBadge({ classification }) {
       ? "Gemma (AMD Developer Cloud)"
       : classification.source === "gemma-google-ai-studio"
       ? "Gemma (Google AI Studio)"
-      : classification.source === "fireworks-gemma"
-      ? "Gemma (Fireworks)"
       : "Gemma (local fallback)";
   return (
     <div className="gemma-badge">

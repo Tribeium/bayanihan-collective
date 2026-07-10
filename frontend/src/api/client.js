@@ -23,17 +23,9 @@ export const api = {
   logCaseAction: (id, type) =>
     request(`/api/cases/${id}/actions`, { method: "POST", body: JSON.stringify({ type }) }),
 
-  getTrainingModules: () => request("/api/training/modules"),
-  getAudienceModes: () => request("/api/training/audience-modes"),
-  getQaBank: (moduleId) =>
-    request(`/api/training/qa-bank${moduleId ? `?moduleId=${moduleId}` : ""}`),
-  getSessionHistory: () => request("/api/training/sessions"),
-  logSession: (session) =>
-    request("/api/training/sessions", { method: "POST", body: JSON.stringify(session) }),
-
-  sendConciergeMessage: (message, history) =>
-    request("/api/concierge/message", {
+  sendMemberAI: (message, mode, conversationHistory) =>
+    request("/api/member-ai", {
       method: "POST",
-      body: JSON.stringify({ message, history }),
+      body: JSON.stringify({ message, mode, conversationHistory }),
     }),
 };
