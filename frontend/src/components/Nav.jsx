@@ -1,6 +1,6 @@
 const TABS = [
   { id: "dashboard", label: "Ops Dashboard" },
-  { id: "training", label: "Training Simulator" },
+  { id: "aiHub", label: "Member AI Hub" },
   { id: "concierge", label: "Member Concierge" },
 ];
 

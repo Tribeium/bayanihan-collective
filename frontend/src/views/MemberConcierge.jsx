@@ -6,7 +6,6 @@ const WELCOME_MESSAGE = {
   role: "assistant",
   content:
     "Welcome to the Bayanihan Collective! I'm the Member Concierge — ask me about onboarding, resource sharing, project matching, or mentorship.",
-  classification: null,
 };
 
 export default function MemberConcierge() {
@@ -26,8 +25,15 @@ export default function MemberConcierge() {
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const { reply, classification } = await api.sendConciergeMessage(text, history.slice(0, -1));
-      setMessages((prev) => [...prev, { role: "assistant", content: reply, classification }]);
+      const { response, source, intent, confidence, escalated } = await api.sendMemberAI(
+        text,
+        "assistant",
+        history.slice(0, -1)
+      );
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: response, source, intent, confidence, escalated },
+      ]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,7 +45,7 @@ export default function MemberConcierge() {
     <div className="view">
       <h1 className="view__title">Member Concierge</h1>
       <p className="view__subtitle">
-        Two-layer AI: Gemma (Google AI Studio) classifies intent, then Claude generates the response.
+        Gemma (Google AI Studio) answers directly — complex questions escalate to Claude.
       </p>
       {error && <p className="error-banner">{error}</p>}
       <div className="panel panel--chat">

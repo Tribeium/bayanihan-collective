@@ -499,6 +499,87 @@ input[type="text"] {
   display: inline-block;
 }
 
+.gemma-badge--gemma {
+  color: var(--accent);
+}
+
+.gemma-badge--gemma .gemma-badge__dot {
+  background: var(--accent);
+}
+
+.gemma-badge--escalated {
+  color: var(--warning);
+}
+
+.gemma-badge--escalated .gemma-badge__dot {
+  background: var(--warning);
+}
+
+.gemma-badge--fallback {
+  color: var(--text-muted);
+}
+
+.gemma-badge--fallback .gemma-badge__dot {
+  background: var(--text-muted);
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.mode-tabs__btn {
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.mode-tabs__btn:hover {
+  color: var(--text);
+}
+
+.mode-tabs__btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.classification-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.classification-log__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  gap: 1rem;
+}
+
+.classification-log__intent {
+  font-weight: 600;
+}
+
+.classification-log__meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
 .chat-widget__input-row {
   display: flex;
   gap: 0.5rem;
