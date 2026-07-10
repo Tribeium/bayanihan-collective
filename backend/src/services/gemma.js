@@ -26,9 +26,6 @@ function classifyLocally(message) {
   return { intent: "general_question", confidence: 0.6 };
 }
 
-// If the message alone is too generic (e.g. "Yes please."), retry using the
-// last assistant turn as context so short/affirmative replies still route
-// to the right intent instead of falling back to general_question.
 function classifyWithFallback(message, history = []) {
   const direct = classifyLocally(message);
   if (direct.intent !== "general_question") {
@@ -46,12 +43,59 @@ function classifyWithFallback(message, history = []) {
   return { ...direct, source: "local-fallback" };
 }
 
-/**
- * Classifies intent using Gemma via Google AI Studio. Falls back to a local
- * keyword classifier when GOOGLE_AI_STUDIO_API_KEY is not configured, so the
- * demo runs without live credentials.
- */
-export async function classifyIntent(message, history = []) {
+async function classifyWithAmdDevCloud(message) {
+  const baseUrl = process.env.AMD_DEVCLOUD_GEMMA_URL;
+  if (!baseUrl) return null;
+
+  const model = process.env.AMD_DEVCLOUD_GEMMA_MODEL || "google/gemma-3-12b-it";
+  const prompt = `Classify the user's message into exactly one intent from this list: ${INTENTS.join(
+    ", "
+  )}. Respond with strict JSON only, no other text: {"intent": "...", "confidence": 0.0-1.0}.\n\nMessage: "${message}"`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 100,
+        temperature: 0,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => "(could not read body)");
+      console.error("AMD Developer Cloud Gemma error body:", errBody);
+      throw new Error(`AMD Developer Cloud Gemma returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content ?? "";
+    console.log("AMD Developer Cloud Gemma raw content:", JSON.stringify(raw));
+    const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? "{}");
+
+    if (!INTENTS.includes(parsed.intent)) {
+      return null;
+    }
+
+    return {
+      intent: parsed.intent,
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.7,
+      source: "gemma-amd-devcloud",
+    };
+  } catch (err) {
+    console.error("Gemma (AMD Developer Cloud) classification failed:", err.message);
+    return null;
+  }
+}
+
+async function classifyWithGoogleAiStudio(message, history = []) {
   const apiKey = process.env.GOOGLE_AI_STUDIO_API_KEY;
   if (!apiKey) {
     return classifyWithFallback(message, history);
@@ -112,4 +156,13 @@ export async function classifyIntent(message, history = []) {
     console.error("Gemma (Google AI Studio) classification failed, using local fallback:", err.message);
     return classifyWithFallback(message, history);
   }
+}
+
+export async function classifyIntent(message, history = []) {
+  const amdResult = await classifyWithAmdDevCloud(message);
+  if (amdResult) {
+    return amdResult;
+  }
+
+  return classifyWithGoogleAiStudio(message, history);
 }
