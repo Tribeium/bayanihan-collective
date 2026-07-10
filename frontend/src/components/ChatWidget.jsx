@@ -16,7 +16,7 @@ export default function ChatWidget({ messages, onSend, sending }) {
       <div className="chat-widget__log">
         {messages.map((m, i) => (
           <div key={i} className={`chat-message chat-message--${m.role}`}>
-            {m.role === "assistant" && <GemmaBadge message={m} />}
+            {m.role === "assistant" && <GemmaBadge classification={m.classification} />}
             <div className="chat-message__bubble">{m.content}</div>
           </div>
         ))}

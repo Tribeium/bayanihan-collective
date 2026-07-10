@@ -1,22 +1,12 @@
 const GEMMA_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-export const INTENTS = [
+const INTENTS = [
   "onboarding_inquiry",
-  "resource_request",
-  "mentorship_request",
+  "resource_sharing",
   "project_matching",
-  "general_faq",
-  "complex",
+  "mentorship_request",
+  "general_question",
 ];
-
-const SYSTEM_PROMPTS = {
-  orientation:
-    "You are the official AI guide for Bayanihan Collective — a cooperative platform for independent AI developers. Your job is to orient new members. Explain how the cooperative works, member benefits, how to request resources, share skills, and participate in governance. Be warm, clear, and encouraging. Keep responses under 150 words unless the member asks for more detail.",
-  assistant:
-    "You are the Member Assistant for Bayanihan Collective. Answer member questions about the cooperative — resources, projects, disputes, mentorship, governance, and benefits. Be direct and helpful. If a question is deeply technical or outside your scope, flag it as complex.",
-  mentor:
-    "You are the Member Mentor for Bayanihan Collective. Your role is to coach members — give constructive feedback on their cooperative participation, help them practice presenting their skills, and guide them on contributing to the collective. Be encouraging but honest.",
-};
 
 // Naive keyword fallback so the demo still works without a Gemma/Google AI Studio key.
 function classifyLocally(message) {
@@ -25,59 +15,98 @@ function classifyLocally(message) {
     return { intent: "onboarding_inquiry", confidence: 0.82 };
   }
   if (/(resource|compute|dataset|gpu|share)/.test(text)) {
-    return { intent: "resource_request", confidence: 0.78 };
+    return { intent: "resource_sharing", confidence: 0.78 };
   }
   if (/(match|collaborat|pair|team up|partner)/.test(text)) {
     return { intent: "project_matching", confidence: 0.75 };
   }
-  if (/(mentor|guidance|review my|teach me|coach|practice)/.test(text)) {
+  if (/(mentor|guidance|review my|teach me)/.test(text)) {
     return { intent: "mentorship_request", confidence: 0.8 };
   }
-  return { intent: "general_faq", confidence: 0.6 };
+  return { intent: "general_question", confidence: 0.6 };
 }
 
-const FALLBACK_RESPONSES = {
-  orientation:
-    "Welcome to the Collective! As a member you get access to the mutual support case system, the shared resource pool, and the mentorship directory, plus a voice in cooperative governance. What would you like to know more about?",
-  assistant: "Happy to help — could you say a bit more about what you're trying to do in the Collective?",
-  mentor:
-    "Let's work through it together. Tell me what you'd like to practice or improve, and I'll give you feedback.",
-};
+function classifyWithFallback(message, history = []) {
+  const direct = classifyLocally(message);
+  if (direct.intent !== "general_question") {
+    return { ...direct, source: "local-fallback" };
+  }
 
-function localFallbackResponse(mode, message) {
-  const { intent, confidence } = classifyLocally(message);
-  return {
-    intent,
-    confidence,
-    response: FALLBACK_RESPONSES[mode] || FALLBACK_RESPONSES.assistant,
-    source: "local-fallback",
-  };
+  const lastAssistant = [...history].reverse().find((m) => m.role === "assistant");
+  if (lastAssistant?.content) {
+    const contextual = classifyLocally(`${lastAssistant.content} ${message}`);
+    if (contextual.intent !== "general_question") {
+      return { intent: contextual.intent, confidence: 0.65, source: "local-fallback-context" };
+    }
+  }
+
+  return { ...direct, source: "local-fallback" };
 }
 
-function buildHistoryText(history = []) {
-  return history.map((m) => `${m.role === "user" ? "Member" : "Assistant"}: ${m.content}`).join("\n");
+async function classifyWithAmdDevCloud(message) {
+  const baseUrl = process.env.AMD_DEVCLOUD_GEMMA_URL;
+  if (!baseUrl) return null;
+
+  const model = process.env.AMD_DEVCLOUD_GEMMA_MODEL || "google/gemma-3-12b-it";
+  const prompt = `Classify the user's message into exactly one intent from this list: ${INTENTS.join(
+    ", "
+  )}. Respond with strict JSON only, no other text: {"intent": "...", "confidence": 0.0-1.0}.\n\nMessage: "${message}"`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const token = process.env.AMD_DEVCLOUD_JUPYTER_TOKEN;
+    const url = token ? `${baseUrl}/v1/chat/completions?token=${token}` : `${baseUrl}/v1/chat/completions`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 100,
+        temperature: 0,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => "(could not read body)");
+      console.error("AMD Developer Cloud Gemma error body:", errBody);
+      throw new Error(`AMD Developer Cloud Gemma returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content ?? "";
+    console.log("AMD Developer Cloud Gemma raw content:", JSON.stringify(raw));
+    const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? "{}");
+
+    if (!INTENTS.includes(parsed.intent)) {
+      return null;
+    }
+
+    return {
+      intent: parsed.intent,
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.7,
+      source: "gemma-amd-devcloud",
+    };
+  } catch (err) {
+    console.error("Gemma (AMD Developer Cloud) classification failed:", err.message);
+    return null;
+  }
 }
 
-/**
- * Calls Gemma (Google AI Studio) to classify intent AND generate a response
- * in a single call. Falls back to a local, mode-aware canned response when
- * GOOGLE_AI_STUDIO_API_KEY is not configured or the call fails, so the demo
- * runs without live credentials.
- */
-export async function generateModeResponse(mode, message, history = []) {
+async function classifyWithGoogleAiStudio(message, history = []) {
   const apiKey = process.env.GOOGLE_AI_STUDIO_API_KEY;
   if (!apiKey) {
-    return localFallbackResponse(mode, message);
+    return classifyWithFallback(message, history);
   }
 
   const model = process.env.GEMMA_MODEL || "gemma-4-26b-a4b-it";
-  const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.assistant;
-  const historyText = buildHistoryText(history);
-  const prompt = `${systemPrompt}\n\nClassify the member's intent as exactly one of: ${INTENTS.join(
+  const prompt = `Classify the user's message into exactly one intent from this list: ${INTENTS.join(
     ", "
-  )}. Use "complex" for anything deeply technical, sensitive, or outside your scope.\nAlways return JSON: { "intent": string, "confidence": number, "response": string }\n\n${
-    historyText ? `Conversation so far:\n${historyText}\n\n` : ""
-  }Member: ${message}`;
+  )}. Respond with strict JSON only: {"intent": "...", "confidence": 0.0-1.0}.\n\nMessage: "${message}"`;
 
   try {
     const response = await fetch(`${GEMMA_API_BASE}/${model}:generateContent`, {
@@ -89,18 +118,17 @@ export async function generateModeResponse(mode, message, history = []) {
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.4,
+          temperature: 0,
           maxOutputTokens: 800,
           responseMimeType: "application/json",
-          responseJsonSchema: {
-            type: "object",
-            properties: {
-              intent: { type: "string", enum: INTENTS },
-              confidence: { type: "number" },
-              response: { type: "string" },
+            responseJsonSchema: {
+              type: "object",
+              properties: {
+                intent: { type: "string", enum: INTENTS },
+                confidence: { type: "number" },
+              },
+              required: ["intent", "confidence"],
             },
-            required: ["intent", "confidence", "response"],
-          },
         },
       }),
     });
@@ -114,20 +142,29 @@ export async function generateModeResponse(mode, message, history = []) {
     const data = await response.json();
     const parts = data.candidates?.[0]?.content?.parts ?? [];
     const raw = parts.filter((p) => !p.thought).map((p) => p.text).join("");
+    console.log("Gemma raw content:", JSON.stringify(raw));
     const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? "{}");
 
-    if (!INTENTS.includes(parsed.intent) || typeof parsed.response !== "string") {
-      return localFallbackResponse(mode, message);
+    if (!INTENTS.includes(parsed.intent)) {
+      return classifyWithFallback(message, history);
     }
 
     return {
       intent: parsed.intent,
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.7,
-      response: parsed.response,
       source: "gemma-google-ai-studio",
     };
   } catch (err) {
-    console.error("Gemma (Google AI Studio) response generation failed, using local fallback:", err.message);
-    return localFallbackResponse(mode, message);
+    console.error("Gemma (Google AI Studio) classification failed, using local fallback:", err.message);
+    return classifyWithFallback(message, history);
   }
+}
+
+export async function classifyIntent(message, history = []) {
+  const amdResult = await classifyWithAmdDevCloud(message);
+  if (amdResult) {
+    return amdResult;
+  }
+
+  return classifyWithGoogleAiStudio(message, history);
 }

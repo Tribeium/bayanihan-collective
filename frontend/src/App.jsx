@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Nav from "./components/Nav.jsx";
 import OpsDashboard from "./views/OpsDashboard.jsx";
-import MemberAIHub from "./views/MemberAIHub.jsx";
+import TrainingSimulator from "./views/TrainingSimulator.jsx";
 import MemberConcierge from "./views/MemberConcierge.jsx";
 
 export default function App() {
@@ -12,7 +12,7 @@ export default function App() {
       <Nav activeView={activeView} onNavigate={setActiveView} />
       <main className="app-shell__main">
         {activeView === "dashboard" && <OpsDashboard />}
-        {activeView === "aiHub" && <MemberAIHub />}
+        {activeView === "training" && <TrainingSimulator />}
         {activeView === "concierge" && <MemberConcierge />}
       </main>
     </div>
