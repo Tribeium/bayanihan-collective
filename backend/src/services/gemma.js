@@ -56,7 +56,9 @@ async function classifyWithAmdDevCloud(message) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    const token = process.env.AMD_DEVCLOUD_JUPYTER_TOKEN;
+    const url = token ? `${baseUrl}/v1/chat/completions?token=${token}` : `${baseUrl}/v1/chat/completions`;
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
