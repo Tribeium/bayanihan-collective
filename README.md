@@ -54,3 +54,102 @@ only; Claude generates the actual reply shown to the member.
 - **License:** MIT
 
 ## Project structure
+
+```
+bayanihan-collective/
+├── docker-compose.yml
+├── .env.example
+├── backend/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+│       ├── index.js
+│       ├── routes/         # cases, training, concierge
+│       ├── services/       # claude.js, gemma.js (three-tier chain)
+│       └── data/           # seed JSON (cases, training content)
+└── frontend/
+    ├── Dockerfile
+    ├── package.json
+    ├── index.html
+    └── src/
+        ├── App.jsx
+        ├── api/            # fetch client for the backend
+        ├── components/     # Nav, CaseTable, ChatWidget, GemmaBadge, AvailableMentors, etc.
+        └── views/           # OpsDashboard, TrainingSimulator (UI: "Onboarding Presenter"), MemberConcierge
+```
+
+## Running locally
+
+### With Docker Compose (recommended)
+
+```bash
+cp .env.example .env
+# fill in the keys you have available — all are optional for the demo, see below
+docker compose up --build
+```
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:4000
+
+### Without Docker
+
+```bash
+# backend
+cd backend
+npm install
+cp ../.env.example .env
+npm run dev
+
+# frontend, in a second terminal
+cd frontend
+npm install
+npm run dev
+```
+
+## Environment variables
+
+| Variable                        | Purpose                                                        |
+|----------------------------------|------------------------------------------------------------------|
+| `ANTHROPIC_API_KEY`              | Claude — generates concierge/onboarding replies                 |
+| `ANTHROPIC_MODEL`                | Claude model string (default `claude-sonnet-5`)                 |
+| `AMD_DEVCLOUD_GEMMA_URL`         | vLLM proxy URL for the AMD Developer Cloud Gemma instance        |
+| `AMD_DEVCLOUD_GEMMA_MODEL`       | Model served on AMD Developer Cloud (default `google/gemma-3-12b-it`) |
+| `AMD_DEVCLOUD_JUPYTER_TOKEN`     | Access token for the AMD Developer Cloud notebook/proxy          |
+| `GOOGLE_AI_STUDIO_API_KEY`       | Fallback Gemma tier via Google AI Studio                         |
+| `GEMMA_MODEL`                    | Gemma model string used for the Google AI Studio tier             |
+| `N8N_WEBHOOK_URL`                | Optional — enables real SMS/Email notify from the Ops Dashboard  |
+
+## Running without API keys
+
+The backend works without any live keys: if none of the Gemma tiers are configured, the concierge
+and onboarding Q&A fall back to a local keyword-based intent classifier and canned-but-intent-aware
+replies, so the full demo flow (including the classification badge) still works end-to-end for
+judging or offline development.
+
+## API overview
+
+| Method | Path                          | Description                                  |
+|--------|-------------------------------|-----------------------------------------------|
+| GET    | `/api/cases`                  | List all cases                                |
+| GET    | `/api/cases/stats`            | Total/waiting/escalated/resolved counts       |
+| PATCH  | `/api/cases/:id`               | Update status, tier, mediator, or priority    |
+| POST   | `/api/cases/:id/actions`       | Log a mock call/email/text                    |
+| POST   | `/api/cases/:id/notify`        | Trigger a real SMS/Email follow-up via an n8n webhook (mock success if `N8N_WEBHOOK_URL` unset) |
+| GET    | `/api/training/modules`       | Onboarding module content                     |
+| GET    | `/api/training/qa-bank`       | Q&A bank, optionally filtered by module        |
+| GET    | `/api/training/sessions`      | Practice session history                      |
+| POST   | `/api/training/sessions`      | Log a completed practice session              |
+| POST   | `/api/training/ask`           | Ask a live question during an onboarding session (Gemma classify → Claude reply, grounded in module content) |
+| POST   | `/api/concierge/message`      | Send a chat message (Gemma classify → Claude reply) |
+
+## Notes for hackathon judging
+
+- The Ops Dashboard's Call/Email/Text buttons are mock/log-only — actions are logged in-memory only.
+  A separate `POST /api/cases/:id/notify` endpoint exists for real n8n-triggered SMS/Email
+  follow-ups; it degrades gracefully to a mock success when `N8N_WEBHOOK_URL` is unset.
+- All case, developer, and training data is seeded fiction; it resets on backend restart.
+- The Onboarding Presenter's Available Mentors panel is a mock/placeholder — the four listed
+  mentors are not live contacts in this build.
+- The Gemma → Claude pipeline is designed to degrade gracefully without API keys, but uses the
+  real AMD Developer Cloud → Google AI Studio → local-fallback chain the moment credentials are
+  supplied.
