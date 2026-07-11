@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { classifyIntent } from "../services/gemma.js";
-import { generateReply } from "../services/claude.js";
+import { generateEscalatedReply } from "../services/claude.js";
 
 const router = Router();
 
@@ -8,12 +8,14 @@ const router = Router();
 // generates the actual conversational reply, informed by that classification.
 router.post("/message", async (req, res) => {
   const { message, history } = req.body;
+
   if (!message || typeof message !== "string") {
     return res.status(400).json({ error: "message is required" });
   }
 
   const classification = await classifyIntent(message, history);
-  const { reply, source } = await generateReply(message, {
+  const { reply, source } = await generateEscalatedReply(message, {
+    mode: "assistant",
     intent: classification.intent,
     history,
   });

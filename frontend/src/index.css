@@ -604,3 +604,64 @@ input[type="text"] {
   padding: 0.6rem 0.8rem;
   margin-bottom: 1rem;
 }
+
+.mentor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.mentor-list__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.mentor-list__specialization {
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+.mentor-list__bio {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+.talking-points-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.quiz-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.quiz-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+.quiz-option--correct {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.quiz-option--incorrect {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.verify-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
