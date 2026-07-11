@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router } from "express";import { classifyIntent } from "../services/gemma.js";
+import { generateEscalatedReply } from "../services/claude.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -49,4 +50,24 @@ router.post("/sessions", (req, res) => {
   res.status(201).json(session);
 });
 
-export default router;
+router.post("/ask", async (req, res) => {
+  const { message, moduleId, history } = req.body;
+  if (!message || typeof message !== "string") {
+    return res.status(400).json({ error: "message is required" });
+  }
+
+  const moduleData = trainingContent.modules.find((m) => m.id === moduleId);
+  const relevantQa = trainingContent.qaBank.filter((qa) => qa.moduleId === moduleId);
+  const context = [
+    moduleData ? `Module: ${moduleData.title}. ${moduleData.summary}` : "",
+    ...relevantQa.map((qa) => `Q: ${qa.question} A: ${qa.suggestedAnswer}`),
+  ].join("\n");
+
+  const classification = await classifyIntent(message, history || []);
+  const { reply, source } = await generateEscalatedReply(
+    `${context}\n\nMember question: ${message}`,
+    { mode: "assistant", intent: classification.intent, history: history || [] }
+  );
+
+  res.json({ reply, replySource: source, classification });
+});export default router;

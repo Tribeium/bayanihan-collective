@@ -19,20 +19,16 @@ export default function MemberConcierge() {
     setMessages(nextMessages);
     setSending(true);
     setError(null);
-
     try {
       const history = nextMessages
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const { response, source, intent, confidence, escalated } = await api.sendMemberAI(
-        text,
-        "assistant",
-        history.slice(0, -1)
-      );
+      const { reply, classification } = await api.sendConciergeMessage(text, history.slice(0, -1));
+
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: response, source, intent, confidence, escalated },
+        { role: "assistant", content: reply, classification },
       ]);
     } catch (err) {
       setError(err.message);
@@ -45,7 +41,7 @@ export default function MemberConcierge() {
     <div className="view">
       <h1 className="view__title">Member Concierge</h1>
       <p className="view__subtitle">
-        Gemma (Google AI Studio) answers directly — complex questions escalate to Claude.
+        Gemma classifies your question — Claude generates the response.
       </p>
       {error && <p className="error-banner">{error}</p>}
       <div className="panel panel--chat">
